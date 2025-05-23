@@ -1,3 +1,7 @@
 build/
 *.so
 *.dll
+__pycache__/
+*.egg-info/
+*.egg
+*.pyc
