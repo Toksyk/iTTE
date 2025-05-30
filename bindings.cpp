@@ -1,6 +1,7 @@
 #include "lib.h"
 #include <vector>
 #include <cstring> // for memcpy
+#include <future>
 
 extern "C" {
     void testbind_c(int x) {
@@ -44,5 +45,10 @@ extern "C" {
             }
             delete[] game_space_ptr;
         }
+    }
+
+    char GetInput_c() {
+        std::future<std::string> futureString = std::async(std::launch::async, GetInput);
+        return futureString;
     }
 }
