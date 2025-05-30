@@ -9,6 +9,7 @@
 #include "lib.h"
 #include <vector>
 #include <cstring> // For memcpy
+#include <future>
 
 void testbind(int x) {
     std::cout << "it works, input: " << x << "\n";
@@ -37,4 +38,10 @@ std::vector<std::vector<char>> Init() {
         {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'}
     };
     return space;
+}
+
+char GetInput() {
+    char input;
+    std::getline(std::cin, input);
+    return input;
 }
