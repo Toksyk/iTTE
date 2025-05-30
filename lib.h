@@ -16,6 +16,7 @@ extern "C" {
     char** Init_c(int* rows, int* cols);
     void render_c(char** game_space_ptr, int rows, int cols);
     void endscene_c(char** game_space_ptr, int rows); // Function to free the memory
+    char GetInput_c();
 
 }
 #endif
