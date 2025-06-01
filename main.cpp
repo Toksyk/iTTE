@@ -40,8 +40,8 @@ std::vector<std::vector<char>> Init() {
     return space;
 }
 
-char GetInput() {
-    char input;
+std::string GetInput() {
+    std::string input;
     std::getline(std::cin, input);
     return input;
 }

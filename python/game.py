@@ -34,7 +34,9 @@ def main():
         print(" ".join(row))
     # Render the game state
     engine.render(game_state)
-    
+    while True:
+        user_input = engine.get_input()
+        print(f"User input received: {user_input}")
     engine.__del__()
 if __name__ == "__main__":
     main()

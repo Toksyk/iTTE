@@ -9,6 +9,8 @@ std::vector<std::vector<char>> Init();
 
 void render(const std::vector<std::vector<char>>& game_space); // const important i think
 
+std::string GetInput();
+
 extern "C" {
     void testbind_c(int x);
 

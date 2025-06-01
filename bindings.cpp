@@ -48,7 +48,7 @@ extern "C" {
     }
 
     char GetInput_c() {
-        std::future<std::string> futureString = std::async(std::launch::async, GetInput);
-        return futureString;
+        std::string result = GetInput();
+        return result.empty() ? '\0' : result[0]; // return the first character of the input string, or null character if empty
     }
 }

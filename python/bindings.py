@@ -1,13 +1,22 @@
 import ctypes
 import os
 import platform
-from ctypes import get_last_error
+from ctypes import get_errno
 from typing import List, Optional, Tuple
+import sys
+if platform.system() != "Windows":
+    import termios
+    import tty
+else:
+    import msvcrt
 
 class ITTEError(Exception):
     """Base exception class for iTTE errors."""
-    print(f"+{'='*10} ITTE Error {'='*10}+")
+    print(f"+{'='*10} ITTE Error {'='*10}+")  # Print header
+    print(Exception.__doc__)  # Print base class docstring
     pass
+
+platform_input_hack = False
 
 class ITTEEngine:
     """Python interface for the iTTE engine."""
@@ -34,12 +43,15 @@ class ITTEEngine:
                 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
                 kernel32.SetDllDirectoryW(lib_dir)
                 self._lib = ctypes.CDLL(dll_path)
+                import msvcrt
+                platform_input_hack = True
             else:
                 dll_path = os.path.join(lib_dir, "iTTE.so")
                 os.environ['LD_LIBRARY_PATH'] = lib_dir
                 self._lib = ctypes.CDLL(dll_path)
+
         except Exception as e:
-            error_code = get_last_error()
+            error_code = get_errno()
             raise ITTEError(f"Failed to load iTTE library: {e} (Error code: {error_code})")
 
     def _setup_functions(self):
@@ -66,6 +78,10 @@ class ITTEEngine:
         # Set up endscene_c
         self._lib.endscene_c.restype = None
         self._lib.endscene_c.argtypes = [ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), ctypes.c_int]
+
+        # Set up get_input
+        self._lib.GetInput_c.restype = ctypes.c_char
+        self._lib.GetInput_c.argtypes = []
 
     def _test_connection(self,value: int = 420):
         """Test if the connection to the library is working."""
@@ -135,6 +151,24 @@ class ITTEEngine:
             rows,
             cols
         )
+    def get_input(self):
+        """Get a single character of input from the user.
+        
+        Returns:
+            str: The character entered by the user
+        """
+        if platform_input_hack:
+            while True:
+                if msvcrt.kbhit(): #key is pressed
+                    key = msvcrt.getwch() #decode
+                    return key
+        else:
+            filedescriptors = termios.tcgetattr(sys.stdin)
+            tty.setcbreak(sys.stdin)
+            key = sys.stdin.read(1)[0]
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN,filedescriptors)
+  
+        return key
 
     def __del__(self):
         """Clean up resources when the object is destroyed."""
