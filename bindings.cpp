@@ -1,43 +1,67 @@
 #include "lib.h"
 #include <vector>
-#include <cstring> // for memcpy
-#include <future>
+#include <cstring>  // For memcpy
+#include <cstdio>   // For getchar()
+#include <memory> 
 
-extern "C" {
+//TODO:
+// * will need to make function to change the character of an object, for now not needed
+
+extern std::vector<std::vector<char>> global_base_game_space;
+
+extern std::vector<std::unique_ptr<Object>> gameObjects;
+
+extern "C" { // wrappers
+
     void testbind_c(int x) {
         testbind(x);
     }
 
-    // reallocate the silly vector and remake the pointers
     char** Init_c(int* row, int* col) {
-        std::vector<std::vector<char>> game_space_vec = Init();
+        Init();
 
-        *row = game_space_vec.size();
-        if (*row == 0) { // memory leak prevention at its finest
+        *row = global_base_game_space.size(); // this all below wont be used after bindings.py wont require the game state
+        if (*row == 0) {
             *col = 0;
             return nullptr;
         }
-        *col = game_space_vec[0].size();
+        *col = global_base_game_space[0].size();
 
         char** game_space_ptr = new char*[*row];
         for (int i = 0; i < *row; ++i) {
             game_space_ptr[i] = new char[*col];
-            memcpy(game_space_ptr[i], game_space_vec[i].data(), *col * sizeof(char));
+            memcpy(game_space_ptr[i], global_base_game_space[i].data(), *col * sizeof(char));
         }
         return game_space_ptr;
-    };
+    }
 
+    // accepts args from bindings.py (game_space_ptr) for compatibility
+    // ignored for now, soon to be deleted
     void render_c(char** game_space_ptr, int row, int col) {
-        // new std::vector<std::vector<char>> from the pointers
-        std::vector<std::vector<char>> game_space_vec(row, std::vector<char>(col));
-        for (int i = 0; i < row; ++i) {
-            for (int j = 0; j < col; ++j) {
-                game_space_vec[i][j] = game_space_ptr[i][j];
-            }
-        }
-        render(game_space_vec);
-    };
+        render();
+    }
 
+    void AddObject_c(int x, int y, char character) {
+        AddObject(CreateObject(x, y, character));
+    }
+
+    // add and create now together
+
+    void MoveObject_c(int object_index, int new_x, int new_y) {
+        if (object_index >= 0 && object_index < gameObjects.size()) {
+            gameObjects[object_index]->x = new_x;
+            gameObjects[object_index]->y = new_y;
+        } else {
+            std::cerr << "Error: cant move object to: " << object_index << "\n";
+        }
+    }
+
+    char GetInput_c() { // DEPRECATED
+        // FOUND WINDOWS SPECIFIC METHOD OF NOT WAITING FOR ENTER, MIGHT BE A BAD CASE
+        return static_cast<char>(getchar());
+    }
+
+    // this will need to be remade after bindings.py gets updated
     void endscene_c(char** game_space_ptr, int row) {
         if (game_space_ptr) {
             for (int i = 0; i < row; ++i) {
@@ -45,10 +69,7 @@ extern "C" {
             }
             delete[] game_space_ptr;
         }
-    }
 
-    char GetInput_c() {
-        std::string result = GetInput();
-        return result.empty() ? '\0' : result[0]; // return the first character of the input string, or null character if empty
+        gameObjects.clear();
     }
 }
