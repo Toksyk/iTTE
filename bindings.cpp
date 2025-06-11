@@ -7,9 +7,11 @@
 //TODO:
 // * will need to make function to change the character of an object, for now not needed
 
-extern std::vector<std::vector<char>> global_base_game_space;
+extern std::vector<std::vector<char>> game_space;
 
 extern std::vector<std::unique_ptr<Object>> gameObjects;
+
+
 
 extern "C" { // wrappers
 
@@ -20,17 +22,17 @@ extern "C" { // wrappers
     char** Init_c(int* row, int* col) {
         Init();
 
-        *row = global_base_game_space.size(); // this all below wont be used after bindings.py wont require the game state
+        *row = game_space.size(); // this all below wont be used after bindings.py wont require the game state
         if (*row == 0) {
             *col = 0;
             return nullptr;
         }
-        *col = global_base_game_space[0].size();
+        *col = game_space[0].size();
 
         char** game_space_ptr = new char*[*row];
         for (int i = 0; i < *row; ++i) {
             game_space_ptr[i] = new char[*col];
-            memcpy(game_space_ptr[i], global_base_game_space[i].data(), *col * sizeof(char));
+            memcpy(game_space_ptr[i], game_space[i].data(), *col * sizeof(char));
         }
         return game_space_ptr;
     }
