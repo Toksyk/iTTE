@@ -24,7 +24,7 @@ std::unique_ptr<Object> CreateObject(int x, int y, char character);
 void AddObject(std::unique_ptr<Object> obj);
 
 
-extern std::vector<std::vector<char>> global_base_game_space;
+extern std::vector<std::vector<char>> game_space;
 extern std::vector<std::unique_ptr<Object>> gameObjects;
 
 extern "C" {
