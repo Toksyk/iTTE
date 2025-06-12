@@ -12,11 +12,10 @@ else:
 
 class ITTEError(Exception):
     """Base exception class for iTTE errors."""
-    print(f"+{'='*10} ITTE Error {'='*10}+")  # Print header
-    print(Exception.__doc__)  # Print base class docstring
-    pass
-
-platform_input_hack = False
+    def __init__(self, message):
+        super().__init__(message)
+        print(f"+{'='*10} ITTE Error {'='*10}+")
+        print(f"Error: {message}")
 
 class ITTEEngine:
     """Python interface for the iTTE engine."""
@@ -39,15 +38,15 @@ class ITTEEngine:
         try:
             if platform.system() == "Windows":
                 dll_path = os.path.join(lib_dir, "iTTE.dll")
-                os.add_dll_directory(lib_dir)
+                if os.path.exists(lib_dir):
+                    os.add_dll_directory(lib_dir)
                 kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
                 kernel32.SetDllDirectoryW(lib_dir)
                 self._lib = ctypes.CDLL(dll_path)
-                import msvcrt
-                platform_input_hack = True
             else:
                 dll_path = os.path.join(lib_dir, "iTTE.so")
-                os.environ['LD_LIBRARY_PATH'] = lib_dir
+                if os.path.exists(lib_dir):
+                    os.environ['LD_LIBRARY_PATH'] = lib_dir + ":" + os.environ.get('LD_LIBRARY_PATH', '')
                 self._lib = ctypes.CDLL(dll_path)
 
         except Exception as e:
@@ -63,27 +62,39 @@ class ITTEEngine:
         self._lib.testbind_c.restype = None
         self._lib.testbind_c.argtypes = [ctypes.c_int]
 
-        # Set up Init_c
+        # Set up Init_c - now returns char** and takes int* for dimensions
         self._lib.Init_c.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_char))
         self._lib.Init_c.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
 
-        # Set up render_c
+        # Set up render_c - simplified, no longer needs game state pointer
         self._lib.render_c.restype = None
         self._lib.render_c.argtypes = [
-            ctypes.POINTER(ctypes.POINTER(ctypes.c_char)),
-            ctypes.c_int,
-            ctypes.c_int
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_char)),  # game_space_ptr (ignored)
+            ctypes.c_int,  # row (ignored)
+            ctypes.c_int   # col (ignored)
         ]
+
+        # Set up AddObject_c - new function for adding objects
+        self._lib.AddObject_c.restype = None
+        self._lib.AddObject_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_char]
+
+        # Set up MoveObject_c - new function for moving objects
+        self._lib.MoveObject_c.restype = None
+        self._lib.MoveObject_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        
+        # Set up RemoveObject_c - new function for removing objects
+        self._lib.RemoveObject_c.restype = None
+        self._lib.RemoveObject_c.argtypes = [ctypes.c_int]
 
         # Set up endscene_c
         self._lib.endscene_c.restype = None
         self._lib.endscene_c.argtypes = [ctypes.POINTER(ctypes.POINTER(ctypes.c_char)), ctypes.c_int]
 
-        # Set up get_input
+        # Set up GetInput_c (deprecated but still available)
         self._lib.GetInput_c.restype = ctypes.c_char
         self._lib.GetInput_c.argtypes = []
 
-    def _test_connection(self,value: int = 420):
+    def _test_connection(self, value: int = 420):
         """Test if the connection to the library is working."""
         try:
             self._lib.testbind_c(value)
@@ -110,6 +121,9 @@ class ITTEEngine:
     def get_game_state(self) -> List[List[str]]:
         """Get the current game state as a 2D list of characters.
         
+        Note: This method is kept for compatibility but may not reflect 
+        the actual rendered state with objects.
+        
         Returns:
             List[List[str]]: The current game state.
         """
@@ -124,53 +138,90 @@ class ITTEEngine:
             game.append(row_list)
         return game
 
-    def render(self, game_state: List[List[str]]) -> None:
-        """Render the given game state.
+    def render(self, game_state: Optional[List[List[str]]] = None) -> None:
+        """Render the current game state.
         
         Args:
-            game_state: A 2D list of characters representing the game state.
+            game_state: Optional game state (ignored in new implementation).
+                       The C++ engine now manages rendering internally.
         """
         if not self._lib:
             raise ITTEError("Library not loaded")
 
-        rows = len(game_state)
-        if rows == 0:
-            raise ValueError("Empty game state")
-        cols = len(game_state[0])
+        # Create dummy parameters for compatibility - they're ignored by the C++ code
+        dummy_ptr = ctypes.POINTER(ctypes.POINTER(ctypes.c_char))()
+        self._lib.render_c(dummy_ptr, 0, 0)
 
-        c_char = ctypes.c_char * cols
-        c_char_ptr = ctypes.POINTER(c_char)
-        c_rows = (c_char_ptr * rows)()
+    def add_object(self, x: int, y: int, character: str) -> None:
+        """Add a new object to the game world.
+        
+        Args:
+            x: X coordinate of the object
+            y: Y coordinate of the object
+            character: Character to represent the object (single character)
+        """
+        if not self._lib:
+            raise ITTEError("Library not loaded")
+        
+        if len(character) != 1:
+            raise ValueError("Character must be a single character")
+            
+        char_byte = character.encode('ascii')[0]
+        self._lib.AddObject_c(x, y, char_byte)
 
-        for i in range(rows):
-            char_row = c_char(*[ord(c) for c in game_state[i]])
-            c_rows[i] = ctypes.cast(char_row, c_char_ptr)
+    def move_object(self, object_index: int, new_x: int, new_y: int) -> None:
+        """Move an existing object to a new position.
+        
+        Args:
+            object_index: Index of the object to move (0-based)
+            new_x: New X coordinate
+            new_y: New Y coordinate
+        """
+        if not self._lib:
+            raise ITTEError("Library not loaded")
+            
+        self._lib.MoveObject_c(object_index, new_x, new_y)
 
-        self._lib.render_c(
-            ctypes.cast(c_rows, ctypes.POINTER(ctypes.POINTER(ctypes.c_char))),
-            rows,
-            cols
-        )
-    def get_input(self):
+    def remove_object(self, object_index: int) -> None:
+        """Remove an object from the game world.
+        
+        Args:
+            object_index: Index of the object to remove (0-based)
+        """
+        if not self._lib:
+            raise ITTEError("Library not loaded")
+            
+        self._lib.RemoveObject_c(object_index)
+    
+    def get_input(self) -> str:
         """Get a single character of input from the user.
         
         Returns:
             str: The character entered by the user
         """
-        if platform_input_hack:
+        if platform.system() == "Windows":
             while True:
-                if msvcrt.kbhit(): #key is pressed
-                    key = msvcrt.getwch() #decode
+                if msvcrt.kbhit():  # key is pressed
+                    key = msvcrt.getwch()  # decode
                     return key
         else:
             filedescriptors = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
-            key = sys.stdin.read(1)[0]
-            termios.tcsetattr(sys.stdin, termios.TCSADRAIN,filedescriptors)
-  
-        return key
+            key = sys.stdin.read(1)
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, filedescriptors)
+            return key
 
-    def __del__(self):
-        """Clean up resources when the object is destroyed."""
+    def cleanup(self):
+        """clean up resources."""
         if hasattr(self, '_game_ptr') and self._game_ptr and hasattr(self, '_lib'):
             self._lib.endscene_c(self._game_ptr, self._rows)
+            self._game_ptr = None
+
+    def __del__(self):
+        self.cleanup()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()

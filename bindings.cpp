@@ -58,6 +58,14 @@ extern "C" { // wrappers
         }
     }
 
+    void RemoveObject_c(int object_index) {
+        if (object_index >= 0 && object_index < gameObjects.size()) {
+            gameObjects.erase(gameObjects.begin() + object_index);
+        } else {
+            std::cerr << "Error: cant remove object at: " << object_index << "\n";
+        }
+    }
+
     char GetInput_c() { // DEPRECATED
         // FOUND WINDOWS SPECIFIC METHOD OF NOT WAITING FOR ENTER, MIGHT BE A BAD CASE
         return static_cast<char>(getchar());

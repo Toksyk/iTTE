@@ -2,72 +2,126 @@ from bindings import ITTEEngine
 import threading
 from time import sleep
 
+object_index = 0
 
-# @TODO Duży test nie wiem czy to zostanie. HACK 
-class player:
-    def __init__(self, name, score):
-        self.name = name
-        self.score = score
-        self.x = 0
-        self.y = 6
+class Block:
+    def __init__(self, engine: ITTEEngine, character: str = '@', x: int = 1, y: int = 6):
+        self.x = x
+        self.y = y
+        self.character = character
+        self.engine = engine
+        self.object_index = None
+        
+        # Add the player object to the engine
+        self.engine.add_object(self.x, self.y, self.character)
+        self.object_index = object_index
+        object_index += 1
+    
+    def move_to(self, new_x: int, new_y: int):
+        """Move player to new coordinates."""
+        # Bounds checking (20x16 game field with borders)
+        if 1 <= new_x <= 18 and 1 <= new_y <= 14:
+            self.x = new_x
+            self.y = new_y
+            if self.object_index is not None:
+                self.engine.move_object(self.object_index, self.x, self.y)
     
     def up(self):
-        if self.y > 1:
-            self.y -= 1
+        self.move_to(self.x, self.y - 1)
+    
     def down(self):
-        if self.y < 7:
-            self.y += 1
+        self.move_to(self.x, self.y + 1)
+    
     def left(self):
-        if self.x > 1:
-            self.x -= 1
+        self.move_to(self.x - 1, self.y)
+    
     def right(self):
-        if self.x < 9:
-            self.x += 1
+        self.move_to(self.x + 1, self.y)
 
-    def __str__(self):
-        return f"Player: {self.name}, Score: {self.score}"
+def get_char_of_x_y(engine: ITTEEngine, x: int, y: int) -> str:
+    """Get the character at specified coordinates."""
+    
+    game_state = engine.get_game_state()
+    print(game_state)
+    if 0 <= y < len(game_state) and 0 <= x < len(game_state[y]):
+        return game_state[y][x]
+    return ' '
 
-def movment(engine, player):
+def movement_handler(engine: ITTEEngine, player: Block):
+    """Handle player movement input in a separate thread."""
+    
     while True:
-        user_input = engine.get_input()
-        if user_input == 'w':
-            player.up()
-            player.up()
-            player.up()
-        elif user_input == 's':
-            player.down()
-        elif user_input == 'a':
-            player.left()
-        elif user_input == 'd':
-            player.right()
-        elif user_input == 'q':
-            print("Exiting game.")
+        try:
+            sleep(0.1)
+            user_input = engine.get_input().lower()
+            
+            if user_input == ' ':
+                player.up()
+                sleep(0.1)
+                player.up()
+                sleep(0.1)
+                player.up()
+            elif user_input == 'a':
+                player.left()
+            elif user_input == 'd':
+                player.right()
+            elif user_input == 'q':
+                print("Exiting game...")
+                break
+        except KeyboardInterrupt:
             break
-        # sleep(0.1)
+        except Exception as e:
+            print(f"Input error: {e}")
+
 
 def main():
-    player1 = player("%", 0)
-    player1.x = 1
-    # Create an instance of the iTTE engine
-    engine = ITTEEngine()
+    """Main game loop."""
     
-    # engine._test_connection(420)
-    
-    # Initialize the game space
-    rows, cols = engine.initialize()
-    print(f"Game space initialized with dimensions: {rows}x{cols}")
-    # Start a thread for player movement
-    movement_thread = threading.Thread(target=movment, args=(engine, player1))
-    movement_thread.daemon = True
-    movement_thread.start()
-    # Render the game state
-    while True:
-        game_state = engine.get_game_state()
-        game_state[player1.y][player1.x] = player1.name
-        engine.render(game_state)
-        player1.down()
-        sleep(0.1)
+    with ITTEEngine() as engine:
+        # Initialize the game space
+        rows, cols = engine.initialize()
+        print(f"Game space initialized with dimensions: {rows}x{cols}")
+        
+        # Create player
+        player1 = Block(engine, '@')
+        print(f"Created {player1}")
+        
+        # Start movement handler in a separate thread
+        movement_thread = threading.Thread(
+            target=movement_handler, 
+            args=(engine, player1),
+            daemon=True
+        )
+        movement_thread.start()
+        
+        # Main render loop
+        frame_count = 0
+        try:
+            while True:
+                # Clear screen
+                print("\033[2J\033[H", end="")  # ANSI escape codes
+                
+                # Display game info
+                print(f"Frame: {frame_count}| char @TEST '{get_char_of_x_y(engine, player1.x, player1.y+1)}'")
+                print("=" * 40)
+                
+                # Render the game
+                engine.render()
+                
+                sleep(0.2)
+                frame_count += 1
+                
+                # game logic
+                if get_char_of_x_y(engine, player1.x, player1.y-1) == ' ':
+                    player1.down()
+                
+                
+        except KeyboardInterrupt:
+            print("\nGame interrupted by user")
+        
+        # Wait for movement thread to finish
+        movement_thread.join(timeout=1)
 
-    engine.__del__()
+
 if __name__ == "__main__":
     main()
