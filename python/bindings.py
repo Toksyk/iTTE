@@ -62,27 +62,27 @@ class ITTEEngine:
         self._lib.testbind_c.restype = None
         self._lib.testbind_c.argtypes = [ctypes.c_int]
 
-        # Set up Init_c - now returns char** and takes int* for dimensions
+        # Set up Init_c
         self._lib.Init_c.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_char))
         self._lib.Init_c.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
 
-        # Set up render_c - simplified, no longer needs game state pointer
+        # Set up render_c
         self._lib.render_c.restype = None
         self._lib.render_c.argtypes = [
             ctypes.POINTER(ctypes.POINTER(ctypes.c_char)),  # game_space_ptr (ignored)
-            ctypes.c_int,  # row (ignored)
-            ctypes.c_int   # col (ignored)
+            ctypes.c_int,  # row
+            ctypes.c_int   # col 
         ]
 
-        # Set up AddObject_c - new function for adding objects
+        # Set up AddObject_c
         self._lib.AddObject_c.restype = None
         self._lib.AddObject_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_char]
 
-        # Set up MoveObject_c - new function for moving objects
+        # Set up MoveObject_c
         self._lib.MoveObject_c.restype = None
         self._lib.MoveObject_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
         
-        # Set up RemoveObject_c - new function for removing objects
+        # Set up RemoveObject_c
         self._lib.RemoveObject_c.restype = None
         self._lib.RemoveObject_c.argtypes = [ctypes.c_int]
 
@@ -120,9 +120,7 @@ class ITTEEngine:
 
     def get_game_state(self) -> List[List[str]]:
         """Get the current game state as a 2D list of characters.
-        
-        Note: This method is kept for compatibility but may not reflect 
-        the actual rendered state with objects.
+        idk if works
         
         Returns:
             List[List[str]]: The current game state.
@@ -139,16 +137,10 @@ class ITTEEngine:
         return game
 
     def render(self, game_state: Optional[List[List[str]]] = None) -> None:
-        """Render the current game state.
-        
-        Args:
-            game_state: Optional game state (ignored in new implementation).
-                       The C++ engine now manages rendering internally.
-        """
         if not self._lib:
             raise ITTEError("Library not loaded")
 
-        # Create dummy parameters for compatibility - they're ignored by the C++ code
+        #add for compatibility with old code
         dummy_ptr = ctypes.POINTER(ctypes.POINTER(ctypes.c_char))()
         self._lib.render_c(dummy_ptr, 0, 0)
 
@@ -156,9 +148,9 @@ class ITTEEngine:
         """Add a new object to the game world.
         
         Args:
-            x: X coordinate of the object
-            y: Y coordinate of the object
-            character: Character to represent the object (single character)
+            x: X coordinate
+            y: Y coordinate
+            character
         """
         if not self._lib:
             raise ITTEError("Library not loaded")
@@ -173,7 +165,7 @@ class ITTEEngine:
         """Move an existing object to a new position.
         
         Args:
-            object_index: Index of the object to move (0-based)
+            object_index: Index of the object to move
             new_x: New X coordinate
             new_y: New Y coordinate
         """
@@ -186,7 +178,7 @@ class ITTEEngine:
         """Remove an object from the game world.
         
         Args:
-            object_index: Index of the object to remove (0-based)
+            object_index: Index of the object to remove
         """
         if not self._lib:
             raise ITTEError("Library not loaded")

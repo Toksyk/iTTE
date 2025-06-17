@@ -2,6 +2,7 @@ from bindings import ITTEEngine
 import threading
 from time import sleep
 
+global object_index
 object_index = 0
 
 class Block:
@@ -14,8 +15,7 @@ class Block:
         
         # Add the player object to the engine
         self.engine.add_object(self.x, self.y, self.character)
-        self.object_index = object_index
-        object_index += 1
+        self.object_index = 0
     
     def move_to(self, new_x: int, new_y: int):
         """Move player to new coordinates."""
@@ -95,21 +95,15 @@ def main():
         movement_thread.start()
         
         # Main render loop
-        frame_count = 0
         try:
             while True:
                 # Clear screen
                 print("\033[2J\033[H", end="")  # ANSI escape codes
                 
-                # Display game info
-                print(f"Frame: {frame_count}| char @TEST '{get_char_of_x_y(engine, player1.x, player1.y+1)}'")
-                print("=" * 40)
-                
                 # Render the game
                 engine.render()
                 
                 sleep(0.2)
-                frame_count += 1
                 
                 # game logic
                 if get_char_of_x_y(engine, player1.x, player1.y-1) == ' ':
